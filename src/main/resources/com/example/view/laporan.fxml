@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.BarChart?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.NumberAxis?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
@@ -19,6 +22,7 @@
         <DatePicker fx:id="toPicker" />
         <Button onAction="#handleTerapkan" styleClass="primary-button" text="Terapkan" />
         <Region HBox.hgrow="ALWAYS" />
+        <Button fx:id="exportBtn" onAction="#handleExport" text="Export CSV" />
     </HBox>
 
     <HBox spacing="10">
@@ -39,6 +43,11 @@
             <Label fx:id="bestSellerLabel" styleClass="summary-card-value" text="-" wrapText="true" />
         </VBox>
     </HBox>
+
+    <BarChart fx:id="salesChart" prefHeight="190" animated="false" legendVisible="false">
+        <xAxis><CategoryAxis label="Tanggal" /></xAxis>
+        <yAxis><NumberAxis label="Total (Rp)" /></yAxis>
+    </BarChart>
 
     <TableView fx:id="trxTable" VBox.vgrow="ALWAYS">
         <columns>

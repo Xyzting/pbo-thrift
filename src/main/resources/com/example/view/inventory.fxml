@@ -19,6 +19,7 @@
         <TextField fx:id="searchField" promptText="🔍 Cari nama / brand / kode..." prefWidth="280" />
         <ComboBox fx:id="kategoriFilter" promptText="Semua Kategori" />
         <Region HBox.hgrow="ALWAYS" />
+        <Button onAction="#handleImport" text="Import CSV" />
         <Button onAction="#handleTambah" styleClass="primary-button" text="+ Tambah Barang" />
     </HBox>
 

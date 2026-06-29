@@ -4,51 +4,115 @@ import com.example.model.Barang;
 import com.example.model.Kategori;
 import com.example.model.Kondisi;
 import com.example.model.Ukuran;
-import com.google.gson.reflect.TypeToken;
+import com.example.util.DatabaseConnection;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-public class BarangRepository extends JsonRepository<Barang> {
-    public BarangRepository() {
-        super("barang.json", new TypeToken<List<Barang>>() {});
+public class BarangRepository {
+
+    public List<Barang> findAll() throws IOException {
+        try {
+            Connection conn = DatabaseConnection.get();
+            List<Barang> result = new ArrayList<>();
+            try (Statement st = conn.createStatement();
+                 ResultSet rs = st.executeQuery("SELECT * FROM barang ORDER BY kode")) {
+                while (rs.next()) {
+                    result.add(mapRow(rs));
+                }
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new IOException("Gagal membaca data barang: " + e.getMessage(), e);
+        }
     }
 
-    @Override
-    protected List<Barang> seed() {
-        return List.of(
-            new Barang("BR-001", "Kemeja Flanel Kotak", Kategori.ATASAN, "Uniqlo", Ukuran.M, Kondisi.LIKE_NEW, 45000, 95000, 1, "placeholder.png"),
-            new Barang("BR-002", "Jeans Skinny Dark", Kategori.BAWAHAN, "H&M", Ukuran.L, Kondisi.VERY_GOOD, 40000, 85000, 1, "placeholder.png"),
-            new Barang("BR-003", "Jaket Bomber Hitam", Kategori.OUTER, "Zara", Ukuran.L, Kondisi.GOOD, 80000, 185000, 1, "placeholder.png"),
-            new Barang("BR-004", "Dress Motif Bunga", Kategori.DRESS, "H&M", Ukuran.M, Kondisi.LIKE_NEW, 55000, 125000, 1, "placeholder.png"),
-            new Barang("BR-005", "Topi Baseball Nike", Kategori.AKSESORIS, "Nike", Ukuran.ALL_SIZE, Kondisi.VERY_GOOD, 25000, 65000, 2, "placeholder.png"),
-            new Barang("BR-006", "Kaos Polos Navy", Kategori.ATASAN, "Uniqlo", Ukuran.S, Kondisi.LIKE_NEW, 20000, 55000, 1, "placeholder.png"),
-            new Barang("BR-007", "Celana Cargo Hijau", Kategori.BAWAHAN, "Adidas", Ukuran.L, Kondisi.GOOD, 60000, 135000, 1, "placeholder.png"),
-            new Barang("BR-008", "Hoodie Oversize", Kategori.ATASAN, "Champion", Ukuran.XL, Kondisi.VERY_GOOD, 75000, 165000, 1, "placeholder.png"),
-            new Barang("BR-009", "Kemeja Denim Biru", Kategori.ATASAN, "Levi's", Ukuran.M, Kondisi.GOOD, 50000, 110000, 1, "placeholder.png"),
-            new Barang("BR-010", "Rok Plisket Hitam", Kategori.BAWAHAN, "Zara", Ukuran.S, Kondisi.LIKE_NEW, 45000, 98000, 1, "placeholder.png"),
-            new Barang("BR-011", "Coat Panjang Coklat", Kategori.OUTER, "Uniqlo", Ukuran.L, Kondisi.VERY_GOOD, 120000, 245000, 1, "placeholder.png"),
-            new Barang("BR-012", "Dress Midi Polos", Kategori.DRESS, "H&M", Ukuran.M, Kondisi.GOOD, 50000, 115000, 1, "placeholder.png"),
-            new Barang("BR-013", "Tas Selempang Canvas", Kategori.AKSESORIS, "Bershka", Ukuran.ALL_SIZE, Kondisi.VERY_GOOD, 35000, 78000, 1, "placeholder.png"),
-            new Barang("BR-014", "Sweater Rajut Krem", Kategori.ATASAN, "Uniqlo", Ukuran.L, Kondisi.LIKE_NEW, 65000, 145000, 1, "placeholder.png"),
-            new Barang("BR-015", "Celana Chino Khaki", Kategori.BAWAHAN, "Dockers", Ukuran.M, Kondisi.GOOD, 45000, 98000, 1, "placeholder.png")
-        );
+    public void saveAll(List<Barang> items) throws IOException {
+        try {
+            Connection conn = DatabaseConnection.get();
+            conn.setAutoCommit(false);
+            try {
+                try (Statement del = conn.createStatement()) {
+                    del.execute("DELETE FROM barang");
+                }
+                String sql = "INSERT INTO barang (kode, nama, kategori, brand, ukuran, kondisi,"
+                    + " harga_beli, harga_jual, stok, path_gambar)"
+                    + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    for (Barang b : items) {
+                        ps.setString(1, b.getKode());
+                        ps.setString(2, b.getNama());
+                        ps.setString(3, b.getKategori().name());
+                        ps.setString(4, b.getBrand());
+                        ps.setString(5, b.getUkuran().name());
+                        ps.setString(6, b.getKondisi().name());
+                        ps.setDouble(7, b.getHargaBeli());
+                        ps.setDouble(8, b.getHargaJual());
+                        ps.setInt(9, b.getStok());
+                        ps.setString(10, b.getPathGambar());
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                }
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new IOException("Gagal menyimpan data barang: " + e.getMessage(), e);
+        }
     }
 
     public Optional<Barang> findByKode(String kode) throws IOException {
-        return findAll().stream()
-                .filter(b -> b.getKode().equals(kode))
-                .findFirst();
+        try {
+            Connection conn = DatabaseConnection.get();
+            try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM barang WHERE kode = ?")) {
+                ps.setString(1, kode);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) return Optional.of(mapRow(rs));
+                }
+            }
+            return Optional.empty();
+        } catch (SQLException e) {
+            throw new IOException("Gagal mencari barang: " + e.getMessage(), e);
+        }
     }
 
     public List<Barang> search(String keyword) throws IOException {
-        String lc = keyword == null ? "" : keyword.toLowerCase();
+        if (keyword == null || keyword.isBlank()) return findAll();
+        String lc = keyword.toLowerCase();
         return findAll().stream()
                 .filter(b ->
                     b.getNama().toLowerCase().contains(lc) ||
                     b.getBrand().toLowerCase().contains(lc) ||
                     b.getKode().toLowerCase().contains(lc))
                 .collect(Collectors.toList());
+    }
+
+    public void reload() throws IOException {}
+
+    private Barang mapRow(ResultSet rs) throws SQLException {
+        return new Barang(
+            rs.getString("kode"),
+            rs.getString("nama"),
+            Kategori.valueOf(rs.getString("kategori")),
+            rs.getString("brand"),
+            Ukuran.valueOf(rs.getString("ukuran")),
+            Kondisi.valueOf(rs.getString("kondisi")),
+            rs.getDouble("harga_beli"),
+            rs.getDouble("harga_jual"),
+            rs.getInt("stok"),
+            rs.getString("path_gambar")
+        );
     }
 }
